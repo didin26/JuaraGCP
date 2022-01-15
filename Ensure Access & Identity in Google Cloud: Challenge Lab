@@ -1,0 +1,66 @@
+#Task 1: Create a custom security role
+
+nano role-definition.yaml
+
+title: "Role orca_storage_editor_311"
+description: "Edit access for App Versions"
+stage: "ALPHA"
+includedPermissions:
+- storage.buckets.get
+- storage.objects.get
+- storage.objects.list
+- storage.objects.update
+- storage.objects.create
+
+
+gcloud iam roles create orca_storage_editor_311 --project $DEVSHELL_PROJECT_ID \
+--file role-definition.yaml
+
+
+#Task 2: Create a service account
+gcloud iam service-accounts create orca-private-cluster-756-sa --display-name "my service account"
+
+
+#Task 3: Bind a custom security role to a service account
+
+gcloud projects add-iam-policy-binding $DEVSHELL_PROJECT_ID \
+    --member serviceAccount:orca-private-cluster-756-sa@$DEVSHELL_PROJECT_ID.iam.gserviceaccount.com --role roles/monitoring.viewer
+
+gcloud projects add-iam-policy-binding $DEVSHELL_PROJECT_ID \
+    --member serviceAccount:orca-private-cluster-756-sa@$DEVSHELL_PROJECT_ID.iam.gserviceaccount.com --role roles/monitoring.metricWriter
+
+gcloud projects add-iam-policy-binding $DEVSHELL_PROJECT_ID \
+    --member serviceAccount:orca-private-cluster-756-sa@$DEVSHELL_PROJECT_ID.iam.gserviceaccount.com --role roles/logging.logWriter
+
+gcloud projects add-iam-policy-binding $DEVSHELL_PROJECT_ID \
+   --member serviceAccount:orca-private-cluster-756-sa@$DEVSHELL_PROJECT_ID.iam.gserviceaccount.com --role projects/$DEVSHELL_PROJECT_ID/roles/orca_storage_editor_311
+
+
+#Task 4: Create and configure a new Kubernetes Engine private cluster
+
+#set a Zone
+gcloud config set compute/zone us-central1-a
+
+#Create a subnetwork and secondary ranges
+gcloud compute networks subnets create orca-build-subnet \
+    --network default \
+    --range 10.0.4.0/22 \
+    --enable-private-ip-google-access \
+    --region us-central1 \
+    --secondary-range my-svc-range=10.0.32.0/20,my-pod-range=10.4.0.0/14
+
+gcloud container clusters create orca-cluster-145 \
+--num-nodes 1 --master-ipv4-cidr=172.16.0.64/28 --network orca-build-vpc --subnetwork orca-build-subnet --enable-master-authorized-networks  \
+--master-authorized-networks 192.168.10.2/32 --enable-ip-alias --enable-private-nodes --enable-private-endpoint \
+--service-account orca-private-cluster-756-sa@$DEVSHELL_PROJECT_ID.iam.gserviceaccount.com --zone us-east1-b
+
+
+#Task 5: Deploy an application to a private Kubernetes Engine cluster
+
+Navigate to Compute Engine -> VM instance
+launch SSH to orca-jumphost VM instance
+
+
+gcloud container clusters get-credentials orca-cluster-145 --internal-ip --zone us-east1-b --project qwiklabs-gcp-03-d412fcc0360e
+
+kubectl create deployment hello-server --image=gcr.io/google-samples/hello-app:1.0
