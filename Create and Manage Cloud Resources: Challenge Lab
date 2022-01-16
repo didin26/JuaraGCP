@@ -1,6 +1,11 @@
 #Task 1. Create a project jumphost instance
 
 Navigation menu > Compute engine > VM Instance
+Change Series to N1.
+
+Name the instance Instance name .
+Use an f1-micro machine type.
+Use the default image type (Debian Linux).
 
 
 #Task 2. Create a Kubernetes service cluster
